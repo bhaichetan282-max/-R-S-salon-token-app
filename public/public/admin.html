@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salon Admin - Token Counter</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: sans-serif; }
+    body { background: #121212; color: #fff; padding: 20px; display: flex; justify-content: center; }
+    .box { width: 100%; max-width: 500px; background: #1e1e1e; padding: 20px; border-radius: 12px; }
+    .current-display { font-size: 60px; font-weight: bold; text-align: center; color: #4caf50; margin: 10px 0; }
+    button { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; margin-bottom: 10px; }
+    .btn-next { background: #2e7d32; color: white; }
+    .btn-reset { background: #c62828; color: white; font-size: 14px; padding: 10px; }
+    .queue-item { background: #2a2a2a; padding: 10px; margin-top: 8px; border-radius: 6px; display: flex; justify-content: space-between; }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2 style="text-align: center; margin: 0;">✂️ Salon Admin Desk</h2>
+  <div style="text-align: center; color: #aaa; margin-top: 10px;">Chalta Hua Token:</div>
+  <div class="current-display" id="admin-curr-token">#0</div>
+
+  <button class="btn-next" onclick="callNext()">Agla Customer Bulayein (NEXT)</button>
+  <button class="btn-reset" onclick="resetDay()">Naye Din Ke Liye Reset Karein</button>
+
+  <h3 style="margin-top: 25px;">Aane Wale Customers ki Queue:</h3>
+  <div id="queue-list">Koi pending booking nahi hai.</div>
+</div>
+
+<script>
+  const socket = io();
+
+  socket.on('update_state', (data) => {
+    document.getElementById('admin-curr-token').innerText = '#' + data.currentToken;
+
+    const queueDiv = document.getElementById('queue-list');
+    if (data.queue.length === 0) {
+      queueDiv.innerHTML = '<div style="color: #777;">Queue khali hai.</div>';
+    } else {
+      queueDiv.innerHTML = data.queue.map(item => `
+        <div class="queue-item">
+          <div>
+            <strong>#${item.tokenNumber} - ${item.name}</strong><br>
+            <small style="color: #aaa;">Slot: ${item.slot} | Phone: ${item.phone}</small>
+          </div>
+          <div><small>${item.bookedAt}</small></div>
+        </div>
+      `).join('');
+    }
+  });
+
+  function callNext() {
+    socket.emit('next_token');
+  }
+
+  function resetDay() {
+    if (confirm("Kya aap sach me sabhi tokens reset karna chahte hain?")) {
+      socket.emit('reset_system');
+    }
+  }
+</script>
+
+</body>
+</html>
