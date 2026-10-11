@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salon Live Token & Booking</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #f0f2f5; margin: 0; padding: 15px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 450px; }
+    .card { background: white; border-radius: 14px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .header { text-align: center; }
+    .live-badge { display: inline-block; background: #e63946; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 8px; }
+    .token-display { font-size: 52px; font-weight: 800; color: #1d3557; margin: 10px 0; }
+    .info-sub { color: #6c757d; font-size: 14px; }
+    
+    .my-token-card { background: #e8f5e9; border: 2px dashed #4caf50; display: none; }
+    .my-token-card.active { display: block; }
+    
+    label { font-size: 13px; font-weight: 600; color: #333; display: block; margin-top: 10px; }
+    input, select, button { width: 100%; padding: 12px; margin-top: 6px; border-radius: 8px; border: 1px solid #ccc; font-size: 15px; }
+    button { background: #1d3557; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 15px; }
+    button:active { transform: scale(0.98); }
+    .stat-row { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- LIVE STATUS -->
+  <div class="card header">
+    <span class="live-badge">● LIVE STATUS</span>
+    <div class="info-sub">Abhi chal raha token:</div>
+    <div class="token-display" id="current-token">--</div>
+    <div class="info-sub">Ek cutting ka ausat samay: ~20 minute</div>
+  </div>
+
+  <!-- BOOKED TICKET DETAILS -->
+  <div class="card my-token-card" id="my-ticket-card">
+    <h3 style="margin: 0; color: #2e7d32;">Aapka Booked Token</h3>
+    <div class="token-display" style="font-size: 40px; color: #2e7d32;" id="user-token-num">#000</div>
+    <div class="stat-row">
+      <span>Aapke aage baaki log:</span>
+      <strong id="people-ahead">0</strong>
+    </div>
+    <div class="stat-row">
+      <span>Anumanit bacha samay:</span>
+      <strong id="time-remaining" style="color: #d90429;">0 mins</strong>
+    </div>
+  </div>
+
+  <!-- BOOKING FORM -->
+  <div class="card" id="booking-section">
+    <h3 style="margin-top: 0;">Apna Token Book Karein</h3>
+    <form id="booking-form">
+      <label>Aapka Naam:</label>
+      <input type="text" id="cust-name" placeholder="Apna naam daalein" required>
+
+      <label>Mobile Number:</label>
+      <input type="tel" id="cust-phone" placeholder="10-digit number" required>
+
+      <label>Time Slot Chuniye:</label>
+      <select id="cust-slot">
+        <option value="Abhi / Agla uplabdh">Abhi / Agla uplabdh (Next Available)</option>
+        <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
+        <option value="12:00 PM - 01:00 PM">12:00 PM - 01:00 PM</option>
+        <option value="04:00 PM - 05:00 PM">04:00 PM - 05:00 PM</option>
+        <option value="06:00 PM - 07:00 PM">06:00 PM - 07:00 PM</option>
+      </select>
+
+      <button type="submit">Token Book Karein</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  const socket = io();
+  let myToken = localStorage.getItem('my_salon_token') ? parseInt(localStorage.getItem('my_salon_token')) : null;
+  let avgServiceTime = 20;
+
+  socket.on('update_state', (data) => {
+    avgServiceTime = data.avgTime;
+    document.getElementById('current-token').innerText = '#' + (data.currentToken || 'Wait');
+
+    if (myToken) {
+      document.getElementById('my-ticket-card').classList.add('active');
+      document.getElementById('user-token-num').innerText = '#' + myToken;
+
+      const peopleAhead = Math.max(0, myToken - data.currentToken);
+      document.getElementById('people-ahead').innerText = peopleAhead;
+
+      if (peopleAhead === 0) {
+        document.getElementById('time-remaining').innerText = "Ab aapki baari hai! Dukaan par pahunchein.";
+      } else {
+        const estMinutes = peopleAhead * avgServiceTime;
+        document.getElementById('time-remaining').innerText = `Lagbhag ${estMinutes} minute`;
+      }
+    }
+  });
+
+  document.getElementById('booking-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('cust-name').value;
+    const phone = document.getElementById('cust-phone').value;
+    const slot = document.getElementById('cust-slot').value;
+
+    socket.emit('book_token', { name, phone, slot });
+  });
+
+  socket.on('booking_success', (data) => {
+    myToken = data.tokenNumber;
+    localStorage.setItem('my_salon_token', myToken);
+    alert(`Aapka token book ho gaya hai! Token No: #${data.tokenNumber}`);
+    document.getElementById('booking-form').reset();
+  });
+</script>
+
+</body>
+</html>
